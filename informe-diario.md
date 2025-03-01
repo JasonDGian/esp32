@@ -291,3 +291,4 @@ CREAR PAGINA DE MONITOREO GENERAL Y ORDENES MASIVAS.
     -> Tabla que muestra modelo ubicación etc etc... pero también el estado del proyector.
 
 
+En el endpoint de solicitud de ordenes, crear un mecanismo que ponga "online" el microcontrolador que ha realizado la solicitud.  Esto usará un servicio de KeepAlive.
