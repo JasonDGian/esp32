@@ -256,6 +256,22 @@ Por hacer:
  
 **TIEMPO DEDICADO: 8 horas**
 
+# Dia 19 - 01/03/25    
+- Comienzo en pagina de envio de ordenes masivos.
+- Diagnosticado problema con el borrado de modelos y proyectores en cascada.
+    - Investigado modo como solventar esto, propuesta de servicio y proveedor de entidades por defecto en sostitución a cascada (requiere mas pruebas.)
+- Terminada primera versión de pantalla de envio de ordenes masivo.
+- Reorganizados algunos endpoints en controlador REST.
+- Documentado y comentado controlador REST en los endpoints modificados.
+- Modificados botones de paginación y de ordenamiento y añadido selector de registros por paginas.
+- Otros cambios menores.
+
+Notas: 
+- Identificada la necesidad de alterar endpoint de recuperación de proyectores a favor de uno filtrado.
+- Identificado el malfuncionamiento de la funcionalidad de 'seleccionar todo' debido al uso de paginación.
+
+**TIEMPO DEDICADO: 8.5 horas**
+
 
 # **NOTAS**
 - Actualmente el sistema no permite dar de alta mas de un mismo modelo en el mismo aula, el ID de un proyector fisico es su (aula + modelo). Si deseamos permitir el uso de mas de un mismo modelo en un aula debemos modificar este comportamiento.
