@@ -254,7 +254,7 @@ Por hacer:
 - Control de situación y anotación de cambios a implementar.
 - Oros avanzes menores. 
  
-**TIEMPO DEDICADO: 8 horas**
+**TIEMPO DEDICADO: 7 horas**
 
 # Dia 19 - 01/03/25    
 - Comienzo en pagina de envio de ordenes masivos.
@@ -270,8 +270,16 @@ Notas:
 - Identificada la necesidad de alterar endpoint de recuperación de proyectores a favor de uno filtrado.
 - Identificado el malfuncionamiento de la funcionalidad de 'seleccionar todo' debido al uso de paginación.
 
-**TIEMPO DEDICADO: 8.5 horas**
+**TIEMPO DEDICADO: 7.5 horas**
 
+
+# Dia 20 - 02/03/25    
+- Finalizado pagina envios masivos.
+- Comienzo trabajo en pagina eventos.
+- Creado nuevo endpoint para la gestión del a modificacion del estado de eventos.
+- Creados nuevos componentes y ficheros de configuración en front end.
+
+**TIEMPO DEDICADO: 6.2 horas**
 
 # **NOTAS**
 - Actualmente el sistema no permite dar de alta mas de un mismo modelo en el mismo aula, el ID de un proyector fisico es su (aula + modelo). Si deseamos permitir el uso de mas de un mismo modelo en un aula debemos modificar este comportamiento.
