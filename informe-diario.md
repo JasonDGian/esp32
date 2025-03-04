@@ -288,6 +288,11 @@ Notas:
 
 **TIEMPO DEDICADO: 2 horas**
 
+# Dia 22 - 04/03/25    
+- Breve revisión en frio del diseño realizado.
+
+**TIEMPO DEDICADO: 1 horas**
+
 # **NOTAS**
 - Actualmente el sistema no permite dar de alta mas de un mismo modelo en el mismo aula, el ID de un proyector fisico es su (aula + modelo). Si deseamos permitir el uso de mas de un mismo modelo en un aula debemos modificar este comportamiento.
 - Revisar errores devueltos por el servidor para reutilizar mas codigos de manera mas generica pero mas categorizada.
