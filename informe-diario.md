@@ -310,7 +310,15 @@ Notas:
 
 **TIEMPO DEDICADO: 3.5 horas**
 
-NOTAS: hay que controlar la paginacion cuando se aplican filtros en el modelo y plantas.
+
+# Dia 25 - 08/03/25    
+- Implementado formulario de elminación de acciones.
+- Implementado formulario de elminación de comandos.
+- Creados componenetes de tabla seleccionables para los arriba mencionados.
+- Creados los endpoints necesarios para el funcionamiento de lo arriba mencionado.
+- Revisión de estado y anotación de tareas.
+
+**TIEMPO DEDICADO: 5 horas**
 
 # **NOTAS**
 - Actualmente el sistema no permite dar de alta mas de un mismo modelo en el mismo aula, el ID de un proyector fisico es su (aula + modelo). Si deseamos permitir el uso de mas de un mismo modelo en un aula debemos modificar este comportamiento.
