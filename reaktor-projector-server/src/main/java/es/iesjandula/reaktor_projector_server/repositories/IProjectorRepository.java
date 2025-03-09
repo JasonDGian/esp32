@@ -61,8 +61,15 @@ public interface IProjectorRepository extends JpaRepository<Projector, Projector
 			FROM Projector pro 
 			WHERE LOWER(pro.model.modelName) = LOWER(:modelname) 
 			""")
-	public Integer countProjectorAssociatedModel( @Param("modelname") String modelname );
+	public long countProjectorAssociatedModel( @Param("modelname") String modelname );
 	
-
+	@Query(
+			"""
+			SELECT COUNT(*) 
+			FROM Projector pro 
+			WHERE LOWER(pro.classroom.floor.floorName) = LOWER(:floorname) 
+			""")
+	public long countProjectorOnFloor( @Param("floorname") String floorname );
+	
 	
 }

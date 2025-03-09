@@ -68,6 +68,13 @@ public interface IServerEventRepository extends JpaRepository<ServerEvent, Long>
 			@Param("model") String model,
 			@Param("actionStatus") String actionStatus
 			);
+	
+	@Query("""
+			SELECT COUNT(*) 
+			FROM ServerEvent se 
+			WHERE (se.actionStatus = :actionStatus)
+			""")
+	Long getNumberOfEventsCountByStatus( @Param("actionStatus") String actionStatus);
 
 }
 

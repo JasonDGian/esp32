@@ -1,6 +1,7 @@
 package es.iesjandula.reaktor_projector_server.rest;
 
 import java.io.IOException;
+import java.sql.SQLIntegrityConstraintViolationException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -8,6 +9,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Scanner;
 
+import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
@@ -26,16 +28,20 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import es.iesjandula.reaktor_projector_server.dtos.ActionDto;
 import es.iesjandula.reaktor_projector_server.dtos.ClassroomDto;
 import es.iesjandula.reaktor_projector_server.dtos.CommandDto;
 import es.iesjandula.reaktor_projector_server.dtos.EventFilterObject;
 import es.iesjandula.reaktor_projector_server.dtos.FloorDto;
+import es.iesjandula.reaktor_projector_server.dtos.GeneralCountOverviewDto;
+import es.iesjandula.reaktor_projector_server.dtos.ModelOverviewDto;
 import es.iesjandula.reaktor_projector_server.dtos.ProjectorDto;
 import es.iesjandula.reaktor_projector_server.dtos.ProjectorInfoDto;
 import es.iesjandula.reaktor_projector_server.dtos.ProjectorModelDto;
 import es.iesjandula.reaktor_projector_server.dtos.ResponseDto;
 import es.iesjandula.reaktor_projector_server.dtos.RichResponseDto;
 import es.iesjandula.reaktor_projector_server.dtos.ServerEventBatchDto;
+import es.iesjandula.reaktor_projector_server.dtos.ServerEventOverviewDto;
 import es.iesjandula.reaktor_projector_server.dtos.SimplifiedServerEventDto;
 import es.iesjandula.reaktor_projector_server.dtos.TableServerEventDto;
 import es.iesjandula.reaktor_projector_server.entities.Action;
@@ -45,6 +51,7 @@ import es.iesjandula.reaktor_projector_server.entities.Floor;
 import es.iesjandula.reaktor_projector_server.entities.Projector;
 import es.iesjandula.reaktor_projector_server.entities.ProjectorModel;
 import es.iesjandula.reaktor_projector_server.entities.ServerEvent;
+import es.iesjandula.reaktor_projector_server.entities.ids.CommandId;
 import es.iesjandula.reaktor_projector_server.entities.ids.ProjectorId;
 import es.iesjandula.reaktor_projector_server.parsers.interfaces.IClassroomParser;
 import es.iesjandula.reaktor_projector_server.parsers.interfaces.ICommandParser;
@@ -729,18 +736,17 @@ public class ProjectorController
 
 	@Transactional
 	@PutMapping(value = "/server-events")
-	public ResponseEntity<?> updateServerEventStatus(
-			@RequestParam(name = "eventId") String eventId,
+	public ResponseEntity<?> updateServerEventStatus(@RequestParam(name = "eventId") String eventId,
 			@RequestParam(name = "eventStatus") String eventStatus,
 			@RequestParam(name = "newStatus") String eventNewStatus)
 	{
 		try
 		{
-			
+
 			log.info("eventId" + eventId);
 			log.info("eventStatus" + eventStatus);
 			log.info("eventNewStatus" + eventNewStatus);
-			
+
 			// Prepare the response object with success status and message
 			ResponseDto response = new ResponseDto();
 			String message;
@@ -766,27 +772,29 @@ public class ProjectorController
 				return new ProjectorServerException(494, messagex);
 			});
 
-			// For each entry in the possible events constant a comparison is made and if no coincidence
-			// is found an error is returned because the new event status is not accepptable.
-			if ( !(Arrays.stream(Constants.POSSIBLE_EVENTS).anyMatch(event -> event.equals(eventNewStatus) ) ) )
-			{	
-				message = "Event "+ eventNewStatus +" doesnt exist.";
+			// For each entry in the possible events constant a comparison is made and if no
+			// coincidence
+			// is found an error is returned because the new event status is not
+			// accepptable.
+			if (!(Arrays.stream(Constants.POSSIBLE_EVENTS).anyMatch(event -> event.equals(eventNewStatus))))
+			{
+				message = "Event " + eventNewStatus + " doesnt exist.";
 				log.error(message);
-				throw new ProjectorServerException(499, message );
+				throw new ProjectorServerException(499, message);
 			}
-			
+
 			serverEventEntity.setActionStatus(eventNewStatus);
-			
+
 			message = "Event with ID" + eventId + " sucessfully updated to: " + eventNewStatus;
-			
+
 			log.info(message);
-			
+
 			response.setStatus(Constants.RESPONSE_STATUS_SUCCESS);
 			response.setMessage(message);
-			
+
 			this.serverEventRepository.saveAndFlush(serverEventEntity);
-			
-			return ResponseEntity.ok().body(response); 
+
+			return ResponseEntity.ok().body(response);
 
 		} catch (ProjectorServerException e)
 		{
@@ -1388,7 +1396,7 @@ public class ProjectorController
 			log.debug("Attempting to delete projector model: {}", modelName);
 
 			// Check if there are any projectors associated with the given model
-			Integer associatedProjectorCount = projectorRepository.countProjectorAssociatedModel(modelName);
+			long associatedProjectorCount = projectorRepository.countProjectorAssociatedModel(modelName);
 			if (associatedProjectorCount > 0)
 			{
 				String message = String.format("Deletion failed: %d projector%s still associated with model %s.",
@@ -1397,7 +1405,7 @@ public class ProjectorController
 				throw new ProjectorServerException(591, message);
 			}
 
-			Integer associatedCommandsCount = commandRepository.countModelCommands(modelName);
+			long associatedCommandsCount = commandRepository.countModelCommands(modelName);
 			if (associatedCommandsCount > 0)
 			{
 				String message = String.format("Deletion failed: %d command%s still associated with model %s.",
@@ -1538,9 +1546,117 @@ public class ProjectorController
 
 	}
 
+	@PostMapping(value = "/commands-page")
+	public ResponseEntity<?> getCommandsPage(@PageableDefault(page = 0, size = 15) Pageable pageable,
+			@RequestParam(name = "modelName", required = false) String modelName,
+			@RequestParam(name = "action", required = false) String action)
+	{
+		log.debug("Call to fetch commands page received");
+
+		Page<CommandDto> commandsPage = this.commandRepository.findAllCommandsPage(pageable, modelName, action);
+
+		return ResponseEntity.ok().body(commandsPage);
+	}
+
+	@DeleteMapping(value = "/commands")
+	public ResponseEntity<?> deleteCommands(@RequestBody List<CommandDto> commandsList)
+	{
+		try
+		{
+			log.debug("Call to delete commands received: {}", commandsList);
+
+			List<Command> commandsToDelete = new ArrayList<>();
+			int recordsDeleted = 0;
+
+			for (CommandDto command: commandsList)
+			{
+				
+				
+				Action actionEntity = this.actionRepositories.findById(command.getAction()).get();
+				log.debug("Action retreived");
+				
+				ProjectorModel modelEntity = this.projectorModelRepository.findById(command.getModelName()).get();
+				log.debug("ProjectorModel retreived");
+				
+				CommandId commandId = new CommandId();
+
+				commandId.setAction(actionEntity);
+				commandId.setModelName(modelEntity);
+				commandId.setCommand(command.getCommand());
+				log.debug("CommandId retreived");
+					
+				Command commandEntity = this.commandRepository.findById(commandId).get();
+				log.debug("Command retreived");
+				
+				commandsToDelete.add(commandEntity);
+				recordsDeleted++;
+
+			}
+
+			this.commandRepository.deleteAll(commandsToDelete);
+
+			return (ResponseEntity.ok().body("Deleted " + recordsDeleted + " commands from DB."));
+
+		}
+
+		// HACER QUE EL FRONT RECIBA UN AVISO AL INTENTAR BORRAR ESTO Y PERMITA BORRAR
+		// EN CASCADA.
+		catch (DataIntegrityViolationException e)
+		{
+
+			return (ResponseEntity.ok().body("ERROR EN BORRADO POR INTEGRIDAD. \n" + e.getMessage()));
+		}
+	}
+
+	// TODO error handling , response type by content etc..
+	@PostMapping(value = "/actions-page")
+	public ResponseEntity<?> getActionsPage(@PageableDefault(page = 0, size = 15) Pageable pageable)
+	{
+		log.debug("Call to fetch actions page received");
+
+		Page<ActionDto> actionsPage = this.actionRepositories.findAllActionstoDto(pageable);
+
+		return ResponseEntity.ok().body(actionsPage);
+	}
+
+	@DeleteMapping(value = "/actions")
+	public ResponseEntity<?> deleteActions(@RequestBody List<ActionDto> actionsList)
+	{
+		try
+		{
+			log.debug("Call to delete actions received");
+
+			List<Action> actionsToDelete = new ArrayList<>();
+			int recordsDeleted = 0;
+
+			for (ActionDto action : actionsList)
+			{
+
+				Action actionEntity = this.actionRepositories.findById(action.getActionName()).get();
+
+				actionsToDelete.add(actionEntity);
+				recordsDeleted++;
+
+			}
+
+			this.actionRepositories.deleteAll(actionsToDelete);
+
+			return (ResponseEntity.ok().body("Deleted " + recordsDeleted + " actions from DB."));
+
+		}
+
+		// HACER QUE EL FRONT RECIBA UN AVISO AL INTENTAR BORRAR ESTO Y PERMITA BORRAR
+		// EN CASCADA.
+		catch (DataIntegrityViolationException e)
+		{
+
+			return (ResponseEntity.ok().body("ERROR EN BORRADO POR INTEGRIDAD. \n" + e.getMessage()));
+		}
+	}
 
 	@PostMapping("/server-events")
-	public ResponseEntity<?> getEventsPAge( @RequestBody(required = false) EventFilterObject eventFilterObject, @PageableDefault(page = 0, size = 15) Pageable pageable)
+	public ResponseEntity<?> getEventsPAge(@RequestBody(required = false) EventFilterObject eventFilterObject,
+			@PageableDefault(page = 0, size = 10) Pageable pageable)
 	{
 		log.debug("Call to fetch server event page received");
 		log.debug("Classroom: {}", eventFilterObject.getClassroomName());
@@ -1551,25 +1667,80 @@ public class ProjectorController
 		log.debug("getEventId: {}", eventFilterObject.getEventId());
 		log.debug("getUser: {}", eventFilterObject.getUser());
 		log.debug("getDateTime: {}", eventFilterObject.getDateTime());
-				
-		Page<TableServerEventDto> pagina = this.serverEventRepository.getTableServerEventDtoPage(
-				pageable, 
-				eventFilterObject.getClassroomName(), 
-				eventFilterObject.getFloorName(), 
-				eventFilterObject.getModelName(),
-				eventFilterObject.getActionStatus()
-				);
-		
-		
-		log.debug("Recuperados:" + pagina.toList().size());
-		
-		return ResponseEntity.ok().body(pagina);
 
-		
+		Page<TableServerEventDto> pagina = this.serverEventRepository.getTableServerEventDtoPage(pageable,
+				eventFilterObject.getClassroomName(), eventFilterObject.getFloorName(),
+				eventFilterObject.getModelName(), eventFilterObject.getActionStatus());
+
+		log.debug("Recuperados:" + pagina.toList().size());
+
+		return ResponseEntity.ok().body(pagina);
 	}
 
+	@GetMapping("/general-overview")
+	public ResponseEntity<?> getServerOverview()
+	{
 
+		//
+		log.debug("Request for general overview received.");
+		GeneralCountOverviewDto projectorOverview = new GeneralCountOverviewDto();
 
+		projectorOverview.setNumberOfProjectors(this.projectorRepository.count());
+		projectorOverview.setNumberOfActions(this.actionRepositories.count());
+		projectorOverview.setNumberOfClassrooms(this.classroomRepository.count());
+		projectorOverview.setNumberOfCommands(this.commandRepository.count());
+		projectorOverview.setNumberOfFloors(this.floorRepository.count());
+		projectorOverview.setNumberOfModels(this.projectorModelRepository.count());
 
+		return ResponseEntity.ok().body(projectorOverview);
+
+	}
+
+	@GetMapping("/events-overview")
+	public ResponseEntity<?> getEventsOverview()
+	{
+
+		//
+		log.debug("Request for events overview received.");
+		ServerEventOverviewDto serverEventOverviewDto = new ServerEventOverviewDto();
+
+		serverEventOverviewDto.setCanceledEvents(
+				this.serverEventRepository.getNumberOfEventsCountByStatus(Constants.EVENT_STATUS_CANCELED));
+		serverEventOverviewDto.setCompletedEvents(
+				this.serverEventRepository.getNumberOfEventsCountByStatus(Constants.EVENT_STATUS_EXECUTED));
+		serverEventOverviewDto.setDeliveredEvents(
+				this.serverEventRepository.getNumberOfEventsCountByStatus(Constants.EVENT_STATUS_SERVED));
+		serverEventOverviewDto.setErrorEvents(
+				this.serverEventRepository.getNumberOfEventsCountByStatus(Constants.EVENT_STATUS_ERROR));
+		serverEventOverviewDto.setPendingEvents(
+				this.serverEventRepository.getNumberOfEventsCountByStatus(Constants.EVENT_STATUS_PENDING));
+
+		return ResponseEntity.ok().body(serverEventOverviewDto);
+
+	}
+
+	@GetMapping("/models-overview")
+	public ResponseEntity<?> getModelsOverview()
+	{
+
+		//
+		log.debug("Request for models overview received.");
+		List<ModelOverviewDto> modelOverviewDtoList = new ArrayList<>();
+		List<ProjectorModel> modelList = this.projectorModelRepository.findAll();
+
+		for (ProjectorModel model : modelList)
+		{
+
+			ModelOverviewDto currentDto = new ModelOverviewDto();
+			currentDto.setModelname(model.getModelName());
+			currentDto.setAssociatedProjectors(model.getAssociatedProjectors().size());
+			currentDto.setAssociatedCommands(model.getAssociatedCommands().size());
+
+			modelOverviewDtoList.add(currentDto);
+		}
+
+		return ResponseEntity.ok().body(modelOverviewDtoList);
+
+	}
 
 }
