@@ -362,5 +362,29 @@ file.close();
 ## 📍 SD Certificate always percieved as more recent.
 Even ater copying the certificate to the device, the SD certificate, although being the very same, would always be detecetd as more recent.
 This could've happened due to several factors.
-One of them being that the LittleFS and SDfs might handle timestamps differently therefore giving back different  type of results or units. 
+One of them being that the LittleFS and SDfs might handle timestamps differently therefore giving back different type of results or units. To solve this problem I thought of using an NTP server as an external source of precise date time and sync the ESP32 date time with the given one.
+I found this interesting [blog post](https://vasanza.blogspot.com/2021/08/esp32-sincronizar-rtc-interno-con.html).
 
+First thing I included the time library. 
+```
+#include <ESP32Time.h>
+```
+Then create an ESP32Time object which represents the internal real time clock.
+```
+ESP32Time rtc;
+```
+Then configure the NTP request parameters.
+```
+// NPT server config
+const char* ntpServer = "pool.ntp.org"; // Servidor NTP para sincronización horaria.
+const long gmtOffset_sec = 1 * 3600; // Offset de GMT para Madrid (GMT+1).
+const int daylightOffset_sec = 1 * 3600; // Offset adicional para horario de verano (GMT+2 durante verano).
+```
+Now syc the RTC with the ntp values.
+```
+configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+struct tm timeinfo;
+if (getLocalTime(&timeinfo)){
+   rtc.setTimeStruct(timeinfo);
+}
+```
