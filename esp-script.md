@@ -1,7 +1,7 @@
 This version includes:
 - wifi connection configuration.
 - Certificate checks and copy mechanisms with working timestamp comparison.
-
+- calls server for task and receives latest simplified event.
 
 ```cpp
 // WiFi library for connecting to wireless networks
@@ -29,8 +29,8 @@ This version includes:
 // ---------------------------------------------
 // WiFi Configuration
 // ---------------------------------------------
-#define WifiSSID "¿?"
-#define WifiPassword "¿?"
+#define WifiSSID "Lobos-2.4G"
+#define WifiPassword "UL6ACmnV"
 
 // ---------------------------------------------
 // Timezone Configuration
@@ -88,7 +88,8 @@ String projectorModel = "Epson EB-S41";
 String projectorClassroom = "0.01";
 String projectorModelQuery = "Epson%20EB-S41";
 String projectorClassroomQuery = "0.01";
-String taskQueryAddress = "http://192.168.1.100:8085/server-events";  // Used for GET requests
+// Complete url used for GET requests
+String taskQueryAddress = "http://192.168.1.100:8085/server-events?projectorModel=" + projectorModelQuery + "&projectorClassroom=" + projectorClassroomQuery; 
 
 // File paths for SSL certificate storage
 String sdCertFilePath = "/test.txt";        // SSL certificate stored on SD card
@@ -288,6 +289,7 @@ void setup() {
 // ---------------------------------------------
 void loop() {
   // Listen for serial input to trigger a reboot
+  /*
   if (Serial.available()) {
     char received = Serial.read();
     if (received == 'r') {
@@ -331,7 +333,12 @@ void loop() {
       }
     }
   }
+*/
+  callServer();
+  delay(30000);
 }
+
+
 
 // ---------------------------------------------
 // Function to sync date and time with ntp server.
@@ -461,4 +468,40 @@ void copySDCertificateToLocalFS() {
   }
 }
 
+// ---------------------------------------------
+// Function to call the server and retreive server events for this unit.
+// ---------------------------------------------
+void callServer() {
+  debugln("TASK: Inquiring server about tasks.");
+
+  if (WiFi.status() == WL_CONNECTED) {
+    WiFiClientSecure client;
+    client.setInsecure();  // Allows connection without SSL certificate
+
+    HTTPClient http;
+
+    debug("TASK: Connecting to: ");
+    debugln(taskQueryAddress);
+
+    http.begin(taskQueryAddress);
+    
+    int httpResponseCode = http.GET();
+
+    if (httpResponseCode > 0) {
+      debug("TASK: HTTP RESPONSE CODE: ");
+      debugln(httpResponseCode);
+      String httpResponseData = http.getString();
+      debugln("TASK: Response:");
+      debugln(httpResponseData);
+    } else {
+      debug("TASK ERROR: HTTP request failed with code ");
+      debugln(httpResponseCode);
+      debugln(http.errorToString(httpResponseCode).c_str());
+    }
+
+    http.end();
+  } else {
+    debugln("ERROR: No WiFi connection available.");
+  }
+}
 ```
