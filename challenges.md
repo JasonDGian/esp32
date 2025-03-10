@@ -382,13 +382,14 @@ const int daylightOffset_sec = 1 * 3600; // Offset adicional para horario de ver
 ```
 Now syc the RTC with the ntp values.
 ```cpp
-  // Configurar NTP y sincronizar la hora
+  // Start configuring timezone.
   configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
   struct tm timeinfo;
   if (getLocalTime(&timeinfo)) {
-    Serial.println(&timeinfo, "Fecha y hora actual: %A, %B %d %Y %H:%M:%S");
+     Serial.println(&timeinfo, "Hora local: %H:%M:%S");
   } else {
-    Serial.println("Error al obtener la hora."
+    Serial.println("Error al obtener la hora.");
+  }
 ```
 
 Based on this configuration, we can use the `struct tm` object 'timeinfo' to get the desired information.
