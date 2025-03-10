@@ -328,6 +328,132 @@ void loop() {
       esp_restart();
     }
   }
+
+  // Referencia https://randomnerdtutorials.com/esp32-http-get-post-arduino/#http-get-1
+
+  // Send request ever 30 seconds.
+  
+  String serverAddress = "http://192.168.1.100:8085/micro-greeting";
+  unsigned long lastTime = 0;
+  unsigned long timerDelay = 30000;
+
+  if ((millis() - lastTime) > timerDelay) {
+  callServer();
+  lastTime = millis();
+  }
+}
+
+void callServer() {
+  debugln("Calling server");
+
+  if (WiFi.status() == WL_CONNECTED) {
+    debugln("WiFi connected.");
+
+    // Crea el objeto cliente.
+    HTTPClient http;
+
+    // Configura la conexión.
+    http.begin(serverAddress);
+
+    // Recupera el codigo de respuesta HTTP. 
+    int httpResponseCode = http.GET();
+    // Recupera la string del cuerpo de la respuesta.
+    String httpResponseData = http.getString();
+
+    // Testea el codigo de la respuesta http
+    if (httpResponseCode > 0) {
+
+      debug("HTTP RESPONSE CODE:");
+      debugln(httpResponseCode);
+
+      // Testea la string del cuerpo de la respuesta.
+      if (httpResponseData == "turn-on") {
+        delay(5000);
+        pinMode(functionPin, OUTPUT);
+        debugln(httpResponseData);
+        digitalWrite(functionPin, HIGH);
+        sr232Port.write();
+      }
+
+
+    } else {
+      debugln("HTTP ERROR CODE:");
+      debugln(httpResponseCode);
+    }
+
+    // Cierra la conexión.
+    http.end();
+
+  } else {
+    debugln("WiFi NOT connected.");
+  }
+}
+
+
+// SCRIPT PARA ENVIO CADA X.
+// -----------------------------------------------------------------------------
+
+// the following variables are unsigned longs because the time, measured in
+// milliseconds, will quickly become a bigger number than can be stored in an int.
+unsigned long lastTime = 0;
+// Timer set to 10 minutes (600000)
+//unsigned long timerDelay = 600000;
+// Set timer to 5 seconds (5000)
+unsigned long timerDelay = 30000;
+
+void loop() {
+
+  // Es una función de Arduino que devuelve la cantidad de milisegundos que han transcurrido desde que el programa comenzó a ejecutarse.
+
+  // Es una variable que almacena el momento en que se realizó una determinada operación, como un envío HTTP.
+
+  // Es el intervalo que queremos que pase entre dos operaciones consecutivas (en este caso, 30,000 ms, que son 30 segundos).
+
+   /* (millis() - lastTime) > timerDelay)  
+   -> Si desde que se encendió el dispositivo, substraemos el tiempo de la ultima operación realizada y el resultado es mayor al lapso de tiempo que deseamos entre operaciones entonces entrará en ejecucion el bloque de código.
+
+    Si restamos el valor de lastTime (el momento en que se realizó la última operación) del valor actual de millis() (que representa el tiempo total desde que el dispositivo se encendió), obtendremos el tiempo transcurrido desde la última operación.
+
+    La comparación (millis() - lastTime) > timerDelay verifica si este tiempo transcurrido es mayor que el intervalo deseado (timerDelay). Si es así, significa que ya ha pasado suficiente tiempo desde la última ejecución, y el programa procede a realizar la operación correspondiente. Luego, se actualiza el valor de lastTime a millis(), reiniciando así el temporizador para calcular el siguiente intervalo.
+
+    Este mecanismo asegura que las operaciones se ejecuten únicamente después de cumplir el lapso de tiempo establecido. 
+   */
+
+  //Send an HTTP POST request every X minutes
+  if ((millis() - lastTime) > timerDelay) {
+    //Check WiFi connection status
+    if(WiFi.status()== WL_CONNECTED){
+      HTTPClient http;
+
+      String serverPath = serverName + "?temperature=24.37";
+      
+      // Your Domain name with URL path or IP address with path
+      http.begin(serverPath.c_str());
+      
+      // If you need Node-RED/server authentication, insert user and password below
+      //http.setAuthorization("REPLACE_WITH_SERVER_USERNAME", "REPLACE_WITH_SERVER_PASSWORD");
+      
+      // Send HTTP GET request
+      int httpResponseCode = http.GET();
+      
+      if (httpResponseCode>0) {
+        Serial.print("HTTP Response code: ");
+        Serial.println(httpResponseCode);
+        String payload = http.getString();
+        Serial.println(payload);
+      }
+      else {
+        Serial.print("Error code: ");
+        Serial.println(httpResponseCode);
+      }
+      // Free resources
+      http.end();
+    }
+    else {
+      Serial.println("WiFi Disconnected");
+    }
+    lastTime = millis();
+  }
 }
 
 ```

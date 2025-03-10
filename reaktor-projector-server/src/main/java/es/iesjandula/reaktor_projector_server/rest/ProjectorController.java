@@ -1,7 +1,6 @@
 package es.iesjandula.reaktor_projector_server.rest;
 
 import java.io.IOException;
-import java.sql.SQLIntegrityConstraintViolationException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -9,7 +8,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Scanner;
 
-import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
@@ -47,7 +45,6 @@ import es.iesjandula.reaktor_projector_server.dtos.TableServerEventDto;
 import es.iesjandula.reaktor_projector_server.entities.Action;
 import es.iesjandula.reaktor_projector_server.entities.Classroom;
 import es.iesjandula.reaktor_projector_server.entities.Command;
-import es.iesjandula.reaktor_projector_server.entities.Floor;
 import es.iesjandula.reaktor_projector_server.entities.Projector;
 import es.iesjandula.reaktor_projector_server.entities.ProjectorModel;
 import es.iesjandula.reaktor_projector_server.entities.ServerEvent;
@@ -776,7 +773,7 @@ public class ProjectorController
 			// coincidence
 			// is found an error is returned because the new event status is not
 			// accepptable.
-			if (!(Arrays.stream(Constants.POSSIBLE_EVENTS).anyMatch(event -> event.equals(eventNewStatus))))
+			if (!(Arrays.stream(Constants.POSSIBLE_EVENT_STATUS).anyMatch(event -> event.equals(eventNewStatus))))
 			{
 				message = "Event " + eventNewStatus + " doesnt exist.";
 				log.error(message);
@@ -1470,33 +1467,91 @@ public class ProjectorController
 	public String serveCommandToController(@RequestParam(required = true) String projectorModel,
 			@RequestParam(required = true) String projectorClassroom)
 	{
-
-		// TODO ESTO PROVISIONAL.
-		Floor floor = new Floor();
-		floor.setFloorName("Planta baja");
-
-		Classroom classroom = new Classroom();
-		classroom.setFloor(floor);
-		classroom.setClassroomName("0.01");
-
-		Projector projector = new Projector();
-		projector.setClassroom(classroom);
-		projector.setModel(this.projectorModelRepository.findById("Epson EB-S41").get());
-
-		String actionStatus = Constants.EVENT_STATUS_PENDING;
-
-		// recupear el ultimo comando para el modelo y aula especificado
-		List<SimplifiedServerEventDto> simpleEvent = this.serverEventRepository.findMostRecentCommandOpen(projector,
-				actionStatus);
-
-		log.debug(simpleEvent.toString());
-
-		if (simpleEvent.size() > 0)
+		try
 		{
-			return simpleEvent.get(0).toString();
+
+			// Recupera opcional clase.
+			Optional<Classroom> classroomOpt = this.classroomRepository.findById(projectorClassroom);
+
+			// Recupera clase o lanza error.
+			Classroom classroomEntity = classroomOpt.orElseThrow(() ->
+			{
+				String message = "The specified classroom does not exist.";
+				log.error(message);
+				return new ProjectorServerException(494, message);
+			});
+
+			// Recupera opcional modelo.
+			Optional<ProjectorModel> projectorModelOpt = this.projectorModelRepository.findById(projectorModel);
+
+			// Recupera modelo o lanza error.
+			ProjectorModel projectorModelEntity = projectorModelOpt.orElseThrow(() ->
+			{
+				String message = "The specified model does not exist.";
+				log.error(message);
+				return new ProjectorServerException(494, message);
+			});
+
+			// Crea el ID del proyector a busar.
+
+			ProjectorId projectorId = new ProjectorId();
+			projectorId.setClassroom(classroomEntity);
+			projectorId.setModel(projectorModelEntity);
+
+			// Recupera el opcional.
+			Optional<Projector> projectorOpt = this.projectorRepository.findById(projectorId);
+
+			// Recupera la entidad o lanza error.
+			Projector projectorEntity = projectorOpt.orElseThrow(() ->
+			{
+				String message = "The specified projector unit does not exist.";
+				log.error(message);
+				return new ProjectorServerException(494, message);
+			});
+
+			// Recupera listado eventos servidor para este proyector que estan en pendiente
+			// (solo los pendientes).
+			List<ServerEvent> serverEventsList = this.serverEventRepository
+					.findMostRecentServerEventsOpen(projectorEntity, Constants.EVENT_STATUS_PENDING);
+
+			// Evento servidor mas reciente de todos.
+			ServerEvent mostRecentEvent = serverEventsList.get(0);
+
+			// Configura evento simplificado.
+			SimplifiedServerEventDto simpleEvent = new SimplifiedServerEventDto();
+			simpleEvent.setActionStatus(mostRecentEvent.getActionStatus());
+			simpleEvent.setCommandInstruction(mostRecentEvent.getCommand().getCommand());
+			simpleEvent.setEventId(mostRecentEvent.getEventId());
+
+			for (ServerEvent serverEvent : serverEventsList)
+			{
+				if (serverEvent.equals(serverEventsList.get(0)))
+				{
+					serverEvent.setActionStatus(Constants.EVENT_STATUS_SERVED);
+				} else
+				{
+					serverEvent.setActionStatus(Constants.EVENT_STATUS_CANCELED);
+				}
+			}
+
+			this.serverEventRepository.saveAllAndFlush(serverEventsList);
+
+			return simpleEvent.toString();
+
+//			log.debug(simpleEvent.toString());
+//
+//			if (simpleEvent.size() > 0)
+//			{
+//				return simpleEvent.get(0).toString();
+//			}
+//
+//			return null;
+
+		} catch (Exception e)
+		{
+			return e.getMessage();
 		}
 
-		return null;
 	}
 
 	@GetMapping(value = "/server-events-table")
@@ -1568,26 +1623,25 @@ public class ProjectorController
 			List<Command> commandsToDelete = new ArrayList<>();
 			int recordsDeleted = 0;
 
-			for (CommandDto command: commandsList)
+			for (CommandDto command : commandsList)
 			{
-				
-				
+
 				Action actionEntity = this.actionRepositories.findById(command.getAction()).get();
 				log.debug("Action retreived");
-				
+
 				ProjectorModel modelEntity = this.projectorModelRepository.findById(command.getModelName()).get();
 				log.debug("ProjectorModel retreived");
-				
+
 				CommandId commandId = new CommandId();
 
 				commandId.setAction(actionEntity);
 				commandId.setModelName(modelEntity);
 				commandId.setCommand(command.getCommand());
 				log.debug("CommandId retreived");
-					
+
 				Command commandEntity = this.commandRepository.findById(commandId).get();
 				log.debug("Command retreived");
-				
+
 				commandsToDelete.add(commandEntity);
 				recordsDeleted++;
 

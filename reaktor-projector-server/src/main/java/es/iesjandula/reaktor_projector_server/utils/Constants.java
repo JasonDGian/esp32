@@ -22,7 +22,7 @@ public final class Constants
 	public static final String EVENT_STATUS_CANCELED = "CANCELED";
 	public static final String EVENT_STATUS_ERROR = "ERROR";
 	
-	public static final String[] POSSIBLE_EVENTS =
+	public static final String[] POSSIBLE_EVENT_STATUS =
 	{ 		
 		EVENT_STATUS_PENDING, 
 		EVENT_STATUS_CANCELED, 
