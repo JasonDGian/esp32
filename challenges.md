@@ -366,22 +366,22 @@ One of them being that the LittleFS and SDfs might handle timestamps differently
 I found this interesting [blog post](https://vasanza.blogspot.com/2021/08/esp32-sincronizar-rtc-interno-con.html).
 
 First thing I included the time library. 
-```
+```cpp
 #include <ESP32Time.h>
 ```
 Then create an ESP32Time object which represents the internal real time clock.
-```
+```cpp
 ESP32Time rtc;
 ```
 Then configure the NTP request parameters.
-```
+```cpp
 // NPT server config
 const char* ntpServer = "pool.ntp.org"; // Servidor NTP para sincronización horaria.
 const long gmtOffset_sec = 1 * 3600; // Offset de GMT para Madrid (GMT+1).
 const int daylightOffset_sec = 1 * 3600; // Offset adicional para horario de verano (GMT+2 durante verano).
 ```
 Now syc the RTC with the ntp values.
-```
+```cpp
 configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
 struct tm timeinfo;
 if (getLocalTime(&timeinfo)){
