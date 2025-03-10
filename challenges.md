@@ -402,4 +402,9 @@ void loop() {
   }
   delay(1000); // Actualizar cada segundo
 ```
+   
+**Another issue arises.**
+Basically, the ESP32's file system libraries (including LittleFS and SD) do not directly provide a function to preserve the creation timestamp during file copy operations. When you copy a file, it will inherit the timestamp of the time when the copy operation occurs. This is not what i want for my project.
+
+However, you can work around this limitation by manually saving the original file's timestamp before copying the file and then applying it to the new file in LittleFS after the copy operation.
 
