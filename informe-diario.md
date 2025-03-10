@@ -320,6 +320,18 @@ Notas:
 
 **TIEMPO DEDICADO: 5 horas**
 
+# Dia 26 - 10/03/25    
+- Pruebas de identificación de Microcontrolador hacia servidor.
+- Arregladas referencias hardcodeadas por constantes en frontend.
+- Cambios a endpoint de servido de tareas para que actualize los estados.
+    - Mecanismo de actualización de estado de eventos servidor.
+- Unificación de funciones de prueba en un unico guion para el microcontrolador.
+    - Consolidación del codigo en unico fichero.
+    - Pruebas de conexión y funcionamiento con backend.
+    - Diagnostico de error `HTTPClientSecure`.
+
+**TIEMPO DEDICADO: 7 horas**
+
 # **NOTAS**
 - Actualmente el sistema no permite dar de alta mas de un mismo modelo en el mismo aula, el ID de un proyector fisico es su (aula + modelo). Si deseamos permitir el uso de mas de un mismo modelo en un aula debemos modificar este comportamiento.
 - Revisar errores devueltos por el servidor para reutilizar mas codigos de manera mas generica pero mas categorizada.
